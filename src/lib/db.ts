@@ -1,61 +1,41 @@
-import Database from 'better-sqlite3';
-import path from 'path';
+import mongoose from 'mongoose';
 
-const dbPath = process.env.DATABASE_PATH || path.join(process.cwd(), 'content_vault.db');
-const db = new Database(dbPath);
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/content-vault-v1';
 
-db.pragma('foreign_keys = ON');
-
-export function initDB() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
-      color TEXT DEFAULT '#6366f1',
-      icon TEXT DEFAULT 'folder',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS items (
-      id TEXT PRIMARY KEY,
-      user_id TEXT DEFAULT 'default_user',
-      category_id TEXT,
-      type TEXT CHECK(type IN ('link', 'short_video', 'doc')) NOT NULL,
-      url TEXT,
-      title TEXT NOT NULL,
-      summary TEXT,
-      local_path TEXT,
-      thumbnail_url TEXT,
-      ai_processed INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS tags (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE
-    );
-
-    CREATE TABLE IF NOT EXISTS item_tags (
-      item_id TEXT,
-      tag_id TEXT,
-      PRIMARY KEY (item_id, tag_id),
-      FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-    );
-  `);
-
-  const categoryCount = db.prepare('SELECT COUNT(*) as count FROM categories').get() as { count: number };
-  if (categoryCount.count === 0) {
-    const insertCategory = db.prepare('INSERT INTO categories (id, name, color, icon) VALUES (?, ?, ?, ?)');
-    insertCategory.run('cat-1', 'Tech & Code', '#3b82f6', 'code');
-    insertCategory.run('cat-2', 'Reels & Shorts', '#ec4899', 'video');
-    insertCategory.run('cat-3', 'Recipes & Food', '#f59e0b', 'utensils');
-    insertCategory.run('cat-4', 'Articles & Docs', '#10b981', 'file-text');
-    insertCategory.run('cat-5', 'General', '#6b7280', 'box');
-  }
+if (!MONGODB_URI) {
+  throw new Error('Please define MONGODB_URI in .env.local');
 }
 
-initDB();
-export default db;
+let cached = (global as any).mongoose || { conn: null, promise: null };
+
+export async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose.connect(MONGODB_URI).then((m) => m);
+  }
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
+// Schemas
+const CategorySchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  color: { type: String, default: '#6366f1' },
+  icon: { type: String, default: 'folder' },
+});
+
+const ItemSchema = new mongoose.Schema({
+  type: { type: String, enum: ['link', 'short_video', 'doc'], required: true },
+  url: String,
+  title: { type: String, required: true },
+  summary: String,
+  thumbnail_url: String,
+  category_name: { type: String, default: 'General' },
+  category_color: { type: String, default: '#6b7280' },
+  tags: [String],
+  created_at: { type: Date, default: Date.now },
+});
+
+export const CategoryModel = mongoose.models.Category || mongoose.model('Category', CategorySchema);
+export const ItemModel = mongoose.models.Item || mongoose.model('Item', ItemSchema);

@@ -41,29 +41,62 @@ export default function Home() {
     fetchData();
   }, [selectedCategory, searchQuery]);
 
+  // const handleIngest = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   if (!inputUrl.trim()) return;
+
+  //   setIsSubmitting(true);
+  //   try {
+  //     const res = await fetch('/api/ingest', {
+  //       method: 'POST',
+  //       headers: { 'Content-Type': 'application/json' },
+  //       body: JSON.stringify({ url: inputUrl }),
+  //     });
+
+  //     if (res.ok) {
+  //       setInputUrl('');
+  //       setIsModalOpen(false);
+  //       fetchData();
+  //     }
+  //   } catch (err) {
+  //     console.error(err);
+  //   } finally {
+  //     setIsSubmitting(false);
+  //   }
+  // };
   const handleIngest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputUrl.trim()) return;
+  e.preventDefault();
+  if (!inputUrl.trim()) return;
 
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: inputUrl }),
-      });
+  setIsSubmitting(true);
+  try {
+    const res = await fetch('/api/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: inputUrl }),
+    });
 
-      if (res.ok) {
-        setInputUrl('');
-        setIsModalOpen(false);
-        fetchData();
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+    // Check if response is valid JSON before parsing
+    const contentType = res.headers.get('content-type');
+    if (!res.ok || !contentType || !contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('API Error (Non-JSON):', text);
+      alert('Server error or route not found. Check terminal logs.');
+      return;
     }
-  };
+
+    const data = await res.json();
+    if (data.success) {
+      setInputUrl('');
+      setIsModalOpen(false);
+      fetchData();
+    }
+  } catch (err) {
+    console.error('Fetch error:', err);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 font-sans overflow-hidden">

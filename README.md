@@ -37,7 +37,7 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-
+-------------------------------------------------------------------------------
 src/lib/scraper - Fetches titles, descriptions, and thumbnails from Instagram, YouTube, and standard web links via OpenGraph tags.
 
 AI Classification Engine (src/lib/ai.ts)
